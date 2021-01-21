@@ -6,7 +6,56 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <thread>
 #include <unistd.h>
+#include <vector>
+
+void handle_client(int client_fd)
+{
+    std::string username;
+    char buffer[256] = {0};
+
+    while (recv(client_fd, buffer, 255, 0) > 0)
+    {
+        if (username.empty())
+        {
+            auto is_username_valid = strlen(buffer) >= 3 || strlen(buffer) <= 14;
+
+            if (!is_username_valid)
+            {
+                for (auto cur = buffer; *cur != '\0'; cur++)
+                {
+                    if (!isalnum(*cur))
+                    {
+                        is_username_valid = false;
+                        break;
+                    }
+                }
+            }
+
+            if (!is_username_valid)
+            {
+                break;
+            }
+
+            username = buffer;
+            std::cout << "[info]> " << username << " has join the chat" << std::endl;
+        }
+        else
+        {
+            std::cout << username << "> " << buffer << std::endl;
+        }
+
+        memset(buffer, 0, 256);
+    }
+
+    if (!username.empty())
+    {
+        std::cout << "[info]> " << username << " has quit the chat" << std::endl;
+    }
+
+    close(client_fd);
+}
 
 int main(int argc, char **argv)
 {
@@ -43,61 +92,16 @@ int main(int argc, char **argv)
     auto client_socket_size = sizeof(client_socket);
 
     int client_fd = 0;
-    char buffer[256] = {0};
+
+    std::vector<std::thread> threads;
 
     while ((client_fd = accept(socket_fd, reinterpret_cast<sockaddr *>(&client_socket), reinterpret_cast<socklen_t *>(&client_socket_size))))
     {
-        std::string username;
-
-        auto pid = fork();
-        if (pid == 0)
-        {
-            while (recv(client_fd, buffer, 255, 0) > 0)
-            {
-                if (username.empty())
-                {
-                    auto is_username_valid = strlen(buffer) >= 3 || strlen(buffer) <= 14;
-
-                    if (!is_username_valid)
-                    {
-                        for (auto cur = buffer; *cur != '\0'; cur++)
-                        {
-                            if (!isalnum(*cur))
-                            {
-                                is_username_valid = false;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (!is_username_valid)
-                    {
-                        break;
-                    }
-
-                    username = buffer;
-                    std::cout << "[info]> " << username << " has join the chat" << std::endl;
-                }
-                else
-                {
-                    std::cout << username << "> " << buffer << std::endl;
-                }
-
-                memset(buffer, 0, 256);
-            }
-
-            if (!username.empty())
-            {
-                std::cout << "[info]> " << username << " has quit the chat" << std::endl;
-            }
-
-            close(socket_fd);
-            close(client_fd);
-
-            return EXIT_SUCCESS;
-        }
+        std::thread client(handle_client, client_fd);
+        threads.push_back(std::move(client));
     }
 
     close(socket_fd);
+
     return EXIT_SUCCESS;
 }
