@@ -1,7 +1,8 @@
-cmake_minimum_required(VERSION 3.16)
-project(chat_in_c C)
+cmake_minimum_required(VERSION 3.2)
+project(chat_in_cpp)
 
-set(CMAKE_C_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_executable(server server.c)
-add_executable(client client.c)
+add_executable(server server.cpp)
+add_executable(client client.cpp)
